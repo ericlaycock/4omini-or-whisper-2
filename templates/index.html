@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Compare</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    .container { max-width: 800px; margin: auto; }
+    form { margin-bottom: 1.5rem; }
+    .panels { display: flex; gap: 1rem; }
+    .panel-container { flex: 1; }
+    .panel {
+      flex: 1; 
+      border: 1px solid #ccc; 
+      padding: 0.5rem; 
+      height: 300px; 
+      overflow: auto;
+    }
+    .status { font-style: italic; color: #666; }
+    audio { display: block; margin-bottom: 1rem; width: 100%; }
+    .panel-title { 
+      font-weight: bold; 
+      margin-bottom: 0.5rem; 
+      text-align: center; 
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Compare Transcriptions</h1>
+    <form id="uploadForm">
+      <label>Audio file: <input type="file" name="audio" accept="audio/*" required></label>
+      <label>Language: <input type="text" name="language" placeholder="e.g. en, es" required></label>
+      <button type="submit">Compare</button>
+    </form>
+
+    <audio id="player" controls hidden></audio>
+
+    <div class="panels">
+      <div class="panel-container">
+        <div class="panel-title">4omini-transcribe + Aeneas</div>
+        <div class="panel" id="panel4o">
+          <div class="status">Waiting for 4o-mini…</div>
+        </div>
+      </div>
+      <div class="panel-container">
+        <div class="panel-title">Whisper large-1</div>
+        <div class="panel" id="panelWhisper">
+          <div class="status">Waiting for Whisper…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const player = document.getElementById('player');
+    const p4o = document.getElementById('panel4o');
+    const pWh = document.getElementById('panelWhisper');
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const file = fd.get('audio');
+      player.src = URL.createObjectURL(file);
+      player.hidden = false;
+
+      // reset panels
+      p4o.innerHTML = '<div class="status">Processing 4o-mini…</div>';
+      pWh.innerHTML = '<div class="status">Processing Whisper…</div>';
+
+      try {
+        const res = await fetch('/compare', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        p4o.innerHTML = `<pre>${json.four_o_srt}</pre>
+                         <div>Runtime: ${json.four_o_runtime.toFixed(2)}s</div>`;
+        pWh.innerHTML = `<pre>${json.whisper_srt}</pre>
+                         <div>Runtime: ${json.whisper_runtime.toFixed(2)}s</div>`;
+      } catch(err) {
+        p4o.innerHTML = `<div class="status">Error: ${err.message}</div>`;
+        pWh.innerHTML = `<div class="status">Error: ${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
